@@ -4,7 +4,7 @@ const path = require("path");
 const redis = require("./lib/redis");
 
 async function seed() {
-  const file = process.argv[2] || path.join(__dirname, "ccs-keys.txt");
+  const file = process.argv[2] || path.join(__dirname, "ccs-keys.txt");  // keep this file OUT of GitHub
   console.log(`[seed] Reading keys from ${file}`);
 
   if (!fs.existsSync(file)) {
@@ -22,6 +22,7 @@ async function seed() {
   }
 
   await redis.del("key_order");
+  await redis.del("key_index");
   const existingIds = await redis.hkeys("keys");
   if (existingIds.length) {
     console.log(`[seed] Clearing ${existingIds.length} existing hash entries`);
@@ -33,6 +34,7 @@ async function seed() {
     const id = `k${i + 1}`;
     const entry = { id, key: lines[i], copied: false, copiedAt: null };
     await redis.hset("keys", { [id]: JSON.stringify(entry) });
+    await redis.hset("key_index", { [lines[i]]: id });
     idsInOrder.push(id);
   }
 

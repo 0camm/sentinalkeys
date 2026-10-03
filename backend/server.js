@@ -7,6 +7,7 @@ const rateLimit = require("express-rate-limit");
 const { requireAuthApi } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const keysRoutes = require("./routes/keys");
+const verifyRoutes = require("./routes/verify");
 
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || "")
   .split(",")
@@ -56,6 +57,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/verify", verifyRoutes);  // public: used by Sentinel.exe
 app.use("/api", requireAuthApi, keysRoutes);
 
 app.get("/", (req, res) => {

@@ -57,6 +57,14 @@ function renderKeys(keys) {
     right.appendChild(el("span", "key-status" + (k.copied ? " used" : ""),
       k.copied ? "Copied " + formatTime(k.copiedAt) : "Unused"));
 
+    if (k.device) {
+      right.appendChild(el("span", "key-status used", "Activated"));
+      const rst = el("button", "reset-btn", "Reset PC");
+      rst.type = "button";
+      rst.addEventListener("click", () => resetKey(k.id));
+      right.appendChild(rst);
+    }
+
     const btn = el("button", "copy-btn" + (k.copied ? " used-btn" : ""),
       k.copied ? "Copy again" : "Click to copy");
     btn.type = "button";
@@ -89,6 +97,52 @@ async function copyKey(id) {
     console.error("Copy action failed:", err);
   }
 }
+
+async function resetKey(id) {
+  if (!window.confirm("Unlink this key from its PC so it can be activated on a new one?")) return;
+  try {
+    const res = await fetch(`${window.API_BASE_URL}/api/keys/${encodeURIComponent(id)}/reset`, {
+      method: "POST",
+      credentials: "include"
+    });
+    if (res.status === 401) return redirectToLogin();
+    await loadKeys();
+  } catch (err) {
+    console.error("Reset failed:", err);
+  }
+}
+
+const genBtn = document.getElementById("gen-btn");
+const genCount = document.getElementById("gen-count");
+const genStatus = document.getElementById("gen-status");
+
+async function generateKeys() {
+  genBtn.disabled = true;
+  genStatus.textContent = "Generating...";
+  try {
+    const res = await fetch(`${window.API_BASE_URL}/api/keys/generate`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ count: Number(genCount.value) })
+    });
+    if (res.status === 401) return redirectToLogin();
+    if (!res.ok) {
+      genStatus.textContent = `Failed (${res.status}).`;
+      return;
+    }
+    const data = await res.json();
+    genStatus.textContent = `Created ${data.keys.length} new key${data.keys.length === 1 ? "" : "s"}.`;
+    await loadKeys();
+  } catch (err) {
+    console.error("Generate failed:", err);
+    genStatus.textContent = "Failed. Check console.";
+  } finally {
+    genBtn.disabled = false;
+  }
+}
+
+genBtn.addEventListener("click", generateKeys);
 
 function renderHistory(history) {
   clear(historyList);

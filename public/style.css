@@ -374,3 +374,9 @@ button {
   .copy-btn { flex: 1; }
   .history-row { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
+
+.gen-row { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.gen-row select { background:#101012; color:#f2f3f5; border:1px solid #232326; border-radius:999px; padding:10px 14px; font:inherit; font-size:13.5px; }
+.gen-status { color:#8f9096; font-size:12.5px; }
+.reset-btn { background:transparent; color:#f2f3f5; border:1px solid #232326; border-radius:999px; padding:0 14px; min-height:36px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+.reset-btn:hover { border-color:#3a3a3d; }

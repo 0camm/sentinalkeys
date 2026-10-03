@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const redis = require("../lib/redis");
 
 const router = express.Router();
@@ -66,6 +67,59 @@ router.get("/history", async (req, res) => {
   } catch (err) {
     console.error("[keys] GET /history failed:", err);
     res.status(500).json({ error: "failed to load history" });
+  }
+});
+
+// No 0/O/1/I/L so keys are easy to read out and type.
+const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function randomGroup(len) {
+  let out = "";
+  for (let i = 0; i < len; i++) {
+    out += ALPHABET[crypto.randomInt(ALPHABET.length)];
+  }
+  return out;
+}
+
+function newKey() {
+  return `SNTL-${randomGroup(4)}-${randomGroup(4)}-${randomGroup(4)}-${randomGroup(4)}`;
+}
+
+router.post("/keys/generate", async (req, res) => {
+  try {
+    const count = Math.min(Math.max(parseInt(req.body && req.body.count, 10) || 1, 1), 100);
+    const created = [];
+    for (let i = 0; i < count; i++) {
+      const key = newKey();
+      const id = `g${crypto.randomBytes(6).toString("hex")}`;
+      const entry = { id, key, copied: false, copiedAt: null };
+      await redis.hset("keys", { [id]: JSON.stringify(entry) });
+      await redis.hset("key_index", { [key]: id });
+      await redis.rpush("key_order", id);
+      created.push(entry);
+    }
+    console.log(`[keys] Generated ${created.length} keys`);
+    res.json({ ok: true, keys: created });
+  } catch (err) {
+    console.error("[keys] POST /keys/generate failed:", err);
+    res.status(500).json({ error: "failed to generate keys" });
+  }
+});
+
+router.post("/keys/:id/reset", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const raw = await redis.hget("keys", id);
+    if (!raw) return res.status(404).json({ error: "key not found" });
+    const entry = typeof raw === "string" ? JSON.parse(raw) : raw;
+    delete entry.device;
+    delete entry.activatedAt;
+    await redis.hset("keys", { [id]: JSON.stringify(entry) });
+    console.log(`[keys] Device binding reset for "${id}"`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("[keys] POST /keys/:id/reset failed:", err);
+    res.status(500).json({ error: "failed to reset key" });
   }
 });
 

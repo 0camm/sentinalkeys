@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#000000">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<title>ClientCheckStudios™ — Keys</title>
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/clientcheckstudios/main/ccs.png">
+<title>Sentinel — Keys</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/sentinal/main/Sentinel.png">
 <link rel="stylesheet" href="/style.css">
 <script src="/config.js"></script>
 </head>
@@ -15,9 +15,9 @@
   <div class="page">
     <div class="top-row">
       <div class="header-brand" style="margin-bottom:0;">
-        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/clientcheckstudios/main/ccs.png" alt="ClientCheckStudios logo">
+        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/sentinal/main/Sentinel.png" alt="Sentinel logo">
         <div>
-          <div class="brand-title">CCS Key Dashboard</div>
+          <div class="brand-title">Sentinel Key Dashboard</div>
           <div class="brand-sub" id="key-count">Loading keys...</div>
         </div>
       </div>
@@ -30,6 +30,17 @@
     </div>
 
     <div class="view active" id="keys-view" role="tabpanel">
+      <div class="gen-row">
+        <select id="gen-count" aria-label="How many keys">
+          <option value="1">1 key</option>
+          <option value="5">5 keys</option>
+          <option value="10">10 keys</option>
+          <option value="25">25 keys</option>
+          <option value="50">50 keys</option>
+        </select>
+        <button class="copy-btn" id="gen-btn" type="button">Generate keys</button>
+        <span class="gen-status" id="gen-status"></span>
+      </div>
       <div class="key-list" id="key-list"></div>
     </div>
 
