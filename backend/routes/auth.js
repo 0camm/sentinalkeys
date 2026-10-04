@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const rateLimit = require("express-rate-limit");
 const redis = require("../lib/redis");
+const { getToken } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -67,7 +68,9 @@ router.post("/login", loginLimiter, async (req, res) => {
       maxAge: SESSION_TTL_SECONDS * 1000
     });
     console.log(`[auth] Login succeeded for username "${username}"`);
-    res.json({ ok: true });
+    // The token is also returned so the panel can send it as a header (mobile browsers
+    // block the cross-site cookie above).
+    res.json({ ok: true, token });
   } catch (err) {
     console.error("[auth] /login failed:", err);
     res.status(500).json({ error: "login failed" });
@@ -76,7 +79,7 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 router.post("/logout", async (req, res) => {
   try {
-    const token = req.cookies.sentinel_session;
+    const token = getToken(req);
     if (token) {
       await redis.del(`session:${token}`);
     }

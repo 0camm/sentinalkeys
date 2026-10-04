@@ -7,15 +7,15 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
 <title>Sentinel — Admin Login</title>
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/sentinel/main/Sentinel.png">
-<link rel="stylesheet" href="/style.css">
-<script src="/config.js?v=3"></script>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="stylesheet" href="/style.css?v=4">
+<script src="/config.js?v=4"></script>
 </head>
 <body>
   <div class="login-page">
     <div class="login-card">
       <div class="header-brand">
-        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/sentinel/main/Sentinel.png" alt="Sentinel logo">
+        <img class="header-logo" src="/Sentinel.png" alt="Sentinel logo">
         <div>
           <div class="brand-title">Sentinel</div>
           <div class="brand-sub">Key Admin</div>
@@ -57,10 +57,15 @@
         const res = await fetch(`${window.API_BASE_URL}/api/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({ username, password })
         });
         if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (!data.token) {
+            showError("Server did not return a session. Make sure the latest server code is deployed.");
+            return;
+          }
+          setToken(data.token);
           window.location.href = "/dashboard.html";
           return;
         }

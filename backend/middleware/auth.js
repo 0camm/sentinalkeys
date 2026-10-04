@@ -1,8 +1,20 @@
 const redis = require("../lib/redis");
 
+const TOKEN_RE = /^[a-f0-9]{64}$/;
+
+// The admin panel is hosted on a different domain than this API. Mobile browsers
+// (iOS Safari, recent Android Chrome) block third-party cookies, so the panel sends
+// its session token in the X-Admin-Token header. The cookie is still accepted for
+// older sessions.
+function getToken(req) {
+  const header = String(req.get("x-admin-token") || "").trim();
+  const token = header || req.cookies.sentinel_session || "";
+  return TOKEN_RE.test(token) ? token : "";
+}
+
 async function requireAuth(req, res, next) {
   try {
-    const token = req.cookies.sentinel_session;
+    const token = getToken(req);
     if (!token) {
       return res.redirect("/login.html");
     }
@@ -20,7 +32,7 @@ async function requireAuth(req, res, next) {
 
 async function requireAuthApi(req, res, next) {
   try {
-    const token = req.cookies.sentinel_session;
+    const token = getToken(req);
     if (!token) {
       return res.status(401).json({ error: "not authenticated" });
     }
@@ -35,4 +47,4 @@ async function requireAuthApi(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, requireAuthApi };
+module.exports = { requireAuth, requireAuthApi, getToken };

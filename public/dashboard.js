@@ -78,14 +78,41 @@ function renderKeys(keys) {
   });
 }
 
+// navigator.clipboard is unavailable or refused on some mobile browsers, so fall back
+// to a hidden textarea, and finally to a prompt the user can copy from.
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (err) { /* try the fallback */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;font-size:16px;";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch (err) {
+    return false;
+  }
+}
+
 async function copyKey(id) {
   const entry = keysById.get(id);
   if (!entry) return;
   try {
-    await navigator.clipboard.writeText(entry.key);
-    const res = await fetch(`${window.API_BASE_URL}/api/keys/${encodeURIComponent(id)}/copy`, {
-      method: "POST",
-      credentials: "include"
+    if (!(await copyText(entry.key))) {
+      window.prompt("Copy this key:", entry.key);
+    }
+    const res = await authFetch(`${window.API_BASE_URL}/api/keys/${encodeURIComponent(id)}/copy`, {
+      method: "POST"
     });
     if (res.status === 401) return redirectToLogin();
     if (!res.ok) {
@@ -101,9 +128,8 @@ async function copyKey(id) {
 async function resetKey(id) {
   if (!window.confirm("Unlink this key from its PC so it can be activated on a new one?")) return;
   try {
-    const res = await fetch(`${window.API_BASE_URL}/api/keys/${encodeURIComponent(id)}/reset`, {
-      method: "POST",
-      credentials: "include"
+    const res = await authFetch(`${window.API_BASE_URL}/api/keys/${encodeURIComponent(id)}/reset`, {
+      method: "POST"
     });
     if (res.status === 401) return redirectToLogin();
     await loadKeys();
@@ -120,9 +146,8 @@ async function generateKeys() {
   genBtn.disabled = true;
   genStatus.textContent = "Generating...";
   try {
-    const res = await fetch(`${window.API_BASE_URL}/api/keys/generate`, {
+    const res = await authFetch(`${window.API_BASE_URL}/api/keys/generate`, {
       method: "POST",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ count: Number(genCount.value) })
     });
@@ -159,12 +184,13 @@ function renderHistory(history) {
 }
 
 function redirectToLogin() {
+  clearToken();
   window.location.href = "/login.html";
 }
 
 async function loadKeys() {
   try {
-    const res = await fetch(`${window.API_BASE_URL}/api/keys`, { credentials: "include" });
+    const res = await authFetch(`${window.API_BASE_URL}/api/keys`);
     if (res.status === 401) return redirectToLogin();
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -184,7 +210,7 @@ async function loadKeys() {
 
 async function loadHistory() {
   try {
-    const res = await fetch(`${window.API_BASE_URL}/api/history`, { credentials: "include" });
+    const res = await authFetch(`${window.API_BASE_URL}/api/history`);
     if (res.status === 401) return redirectToLogin();
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -218,7 +244,7 @@ tabButtons.forEach((btn) => {
 
 logoutBtn.addEventListener("click", async () => {
   try {
-    await fetch(`${window.API_BASE_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+    await authFetch(`${window.API_BASE_URL}/api/auth/logout`, { method: "POST" });
   } catch (err) {
     console.error("Logout request failed:", err);
   } finally {
@@ -226,4 +252,8 @@ logoutBtn.addEventListener("click", async () => {
   }
 });
 
-loadKeys();
+if (!getToken()) {
+  redirectToLogin();
+} else {
+  loadKeys();
+}
