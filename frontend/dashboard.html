@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>ClientCheckStudios™ — Keys</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/clientcheckstudios/main/ccs.png">
+<link rel="stylesheet" href="/style.css">
+<script src="/config.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="top-row">
+      <div class="header-brand" style="margin-bottom:0;">
+        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/clientcheckstudios/main/ccs.png" alt="ClientCheckStudios logo">
+        <div>
+          <div class="brand-title">CCS Key Dashboard</div>
+          <div class="brand-sub" id="key-count">Loading keys...</div>
+        </div>
+      </div>
+      <button class="logout-btn" id="logout-btn" type="button">Log out</button>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Key sections">
+      <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="keys-view" type="button" data-view="keys-view">Keys</button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="history-view" type="button" data-view="history-view">History</button>
+    </div>
+
+    <div class="view active" id="keys-view" role="tabpanel">
+      <div class="key-list" id="key-list"></div>
+    </div>
+
+    <div class="view" id="history-view" role="tabpanel">
+      <div class="key-list" id="history-list"></div>
+    </div>
+  </div>
+  <script src="/dashboard.js"></script>
+</body>
+</html>

@@ -15,9 +15,8 @@ const reportLimiter = rateLimit({
   message: { error: "too many reports, try again later" }
 });
 
-const MAX_LOG_CHARS = 100000;
-const MAX_ENTRIES = 500;        // safety cap so one scan cannot flood the channel
-const MAX_MESSAGE_CHARS = 1900; // Discord's limit is 2000, including the code fence
+const MAX_LOG_CHARS = 1000000;  // far above any real scan; just a sanity bound
+const MAX_BLOCK_CHARS = 1900;   // text per Discord message (limit 2000 incl. the code fence)
 const FENCE = "`".repeat(3);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -46,7 +45,7 @@ async function findIdByKey(key) {
 }
 
 // Entries are separated by a blank line (the app joins them that way). Multi-line
-// entries such as the prefetch ones stay together in one message.
+// entries such as the prefetch ones stay together.
 function splitEntries(text) {
   return text
     .split(/\n{2,}/)
@@ -54,10 +53,29 @@ function splitEntries(text) {
     .filter((e) => e && !/^===.*===$/.test(e)); // the "=== SCAN | ... ===" banner is replaced by our header
 }
 
-function asCodeBlock(entry) {
-  let body = entry.split(FENCE).join("'''");
-  if (body.length > MAX_MESSAGE_CHARS) body = body.slice(0, MAX_MESSAGE_CHARS - 3) + "...";
-  return `${FENCE}\n${body}\n${FENCE}`;
+// Packs entries into as few messages as possible: one entry per line inside a code
+// block, filling each message up to Discord's limit. Nothing is dropped, and a scan
+// with hundreds of hits needs tens of messages instead of hundreds, so it arrives fast.
+function packEntries(entries) {
+  const messages = [];
+  let body = "";
+  let prevMulti = false;
+  const flush = () => {
+    if (body) messages.push(`${FENCE}\n${body}\n${FENCE}`);
+    body = "";
+  };
+  for (const raw of entries) {
+    let e = raw.split(FENCE).join("'''");
+    if (e.length > MAX_BLOCK_CHARS) e = e.slice(0, MAX_BLOCK_CHARS - 3) + "...";
+    const multi = e.includes("\n");
+    // multi-line entries (prefetch) get a blank line around them so they stay readable
+    const sep = body ? (multi || prevMulti ? "\n\n" : "\n") : "";
+    if (body && body.length + sep.length + e.length > MAX_BLOCK_CHARS) flush();
+    body += (body ? sep : "") + e;
+    prevMulti = multi;
+  }
+  flush();
+  return messages;
 }
 
 // Posts one message, respecting Discord's rate limits (429 + the remaining/reset headers).
@@ -118,7 +136,7 @@ router.post("/", reportLimiter, async (req, res) => {
     }
 
     const entries = splitEntries(text);
-    const shown = entries.slice(0, MAX_ENTRIES);
+    const blocks = packEntries(entries);
     const count = `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
     const header = `**Sentinel: ${scan}** | Discord ID: \`${discordId}\` | Host: \`${host}\` | ${count}`;
 
@@ -133,20 +151,17 @@ router.post("/", reportLimiter, async (req, res) => {
       return res.status(502).json({ error: hint });
     }
 
-    // The entries follow in the background so the app is not kept waiting.
+    // The findings follow in the background so the app is not kept waiting.
     sendChain = sendChain.then(async () => {
       try {
-        for (const item of shown) {
-          const r = await postMessage(webhook, asCodeBlock(item));
+        for (const block of blocks) {
+          const r = await postMessage(webhook, block);
           if (!r.ok) {
             console.error(`[report] Discord returned ${r.status} mid-report; stopping`);
             return;
           }
         }
-        if (entries.length > shown.length) {
-          await postMessage(webhook, `...and ${entries.length - shown.length} more entries not shown (limit ${MAX_ENTRIES}).`);
-        }
-        console.log(`[report] ${scan} for ${discordId}: ${shown.length} entries delivered`);
+        console.log(`[report] ${scan} for ${discordId}: ${entries.length} entries delivered in ${blocks.length} messages`);
       } catch (err) {
         console.error("[report] background send failed:", err);
       }

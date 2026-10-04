@@ -42,9 +42,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Scan reports are ~100 KB, so /api/report gets its own larger limit. This must stay
+// Scan reports can be several hundred KB, so /api/report gets its own larger limit. This must stay
 // ABOVE the global parser: body-parser skips requests that were already parsed.
-app.use("/api/report", express.json({ limit: "1mb" }));
+app.use("/api/report", express.json({ limit: "5mb" }));
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 

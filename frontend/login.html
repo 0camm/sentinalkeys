@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>ClientCheckStudios™ — Admin Login</title>
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/clientcheckstudios/main/ccs.png">
+<link rel="stylesheet" href="/style.css">
+<script src="/config.js"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="header-brand">
+        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/clientcheckstudios/main/ccs.png" alt="ClientCheckStudios logo">
+        <div>
+          <div class="brand-title">ClientCheckStudios</div>
+          <div class="brand-sub">Key Admin</div>
+        </div>
+      </div>
+      <h1>Sign in</h1>
+      <p class="subtitle">Enter your admin credentials to access the key dashboard.</p>
+      <form id="login-form">
+        <label for="username">Username</label>
+        <input type="text" id="username" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+        <p class="error-text" id="error-text">Invalid credentials.</p>
+        <button type="submit" class="btn-primary">Sign in</button>
+      </form>
+    </div>
+  </div>
+  <script>
+    "use strict";
+    const form = document.getElementById("login-form");
+    const errorText = document.getElementById("error-text");
+    const submitBtn = form.querySelector(".btn-primary");
+
+    function showError(message) {
+      errorText.textContent = message;
+      errorText.style.display = "block";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorText.style.display = "none";
+      submitBtn.disabled = true;
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      try {
+        const res = await fetch(`${window.API_BASE_URL}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          window.location.href = "/dashboard.html";
+          return;
+        }
+        if (res.status === 429) {
+          showError("Too many attempts. Wait a bit before trying again.");
+        } else {
+          const body = await res.json().catch(() => ({}));
+          console.error("Login failed:", res.status, body);
+          showError("Invalid credentials.");
+        }
+      } catch (err) {
+        console.error("Login request failed:", err);
+        showError("Could not reach the server. Try again.");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
