@@ -8,6 +8,7 @@ const { requireAuthApi } = require("./middleware/auth");
 const authRoutes = require("./routes/auth");
 const keysRoutes = require("./routes/keys");
 const verifyRoutes = require("./routes/verify");
+const reportRoutes = require("./routes/report");
 
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || "")
   .split(",")
@@ -41,6 +42,9 @@ app.use(cors({
   credentials: true
 }));
 
+// Scan reports are ~100 KB, so /api/report gets its own larger limit. This must stay
+// ABOVE the global parser: body-parser skips requests that were already parsed.
+app.use("/api/report", express.json({ limit: "1mb" }));
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 
@@ -58,6 +62,7 @@ app.use((req, res, next) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/verify", verifyRoutes);  // public: used by Sentinel.exe
+app.use("/api/report", reportRoutes);  // public: used by Sentinel.exe (needs a valid, activated key)
 app.use("/api", requireAuthApi, keysRoutes);
 
 app.get("/", (req, res) => {
@@ -73,6 +78,9 @@ app.use((err, req, res, next) => {
   console.error(`[error] ${req.method} ${req.path}:`, err);
   if (res.headersSent) {
     return next(err);
+  }
+  if (err && err.type === "entity.too.large") {
+    return res.status(413).json({ error: "request too large" });
   }
   res.status(500).json({ error: "internal server error" });
 });

@@ -2,6 +2,9 @@
   "name": "sentinel-keysite",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node server.js",
     "seed": "node seed.js"
