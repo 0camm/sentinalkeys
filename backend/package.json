@@ -1,5 +1,5 @@
 {
-  "name": "ccs-keysite",
+  "name": "sentinel-keysite",
   "version": "1.0.0",
   "private": true,
   "scripts": {

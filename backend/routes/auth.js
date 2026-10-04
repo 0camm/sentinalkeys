@@ -60,7 +60,7 @@ router.post("/login", loginLimiter, async (req, res) => {
     await redis.del(attemptsKey);
     const token = crypto.randomBytes(32).toString("hex");
     await redis.set(`session:${token}`, username, { ex: SESSION_TTL_SECONDS });
-    res.cookie("ccs_session", token, {
+    res.cookie("sentinel_session", token, {
       httpOnly: true,
       sameSite: "none",
       secure: true,
@@ -76,11 +76,11 @@ router.post("/login", loginLimiter, async (req, res) => {
 
 router.post("/logout", async (req, res) => {
   try {
-    const token = req.cookies.ccs_session;
+    const token = req.cookies.sentinel_session;
     if (token) {
       await redis.del(`session:${token}`);
     }
-    res.clearCookie("ccs_session", { sameSite: "none", secure: true });
+    res.clearCookie("sentinel_session", { sameSite: "none", secure: true });
     res.json({ ok: true });
   } catch (err) {
     console.error("[auth] /logout failed:", err);

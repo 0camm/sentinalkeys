@@ -61,7 +61,7 @@ app.use("/api/verify", verifyRoutes);  // public: used by Sentinel.exe
 app.use("/api", requireAuthApi, keysRoutes);
 
 app.get("/", (req, res) => {
-  res.json({ ok: true, service: "ccs-keysite api" });
+  res.json({ ok: true, service: "sentinel-keysite api" });
 });
 
 app.use((req, res) => {
@@ -87,5 +87,5 @@ process.on("uncaughtException", (err) => {
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`CCS key site running on port ${port}`);
+  console.log(`Sentinel key site running on port ${port}`);
 });

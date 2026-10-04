@@ -2,13 +2,13 @@ const redis = require("../lib/redis");
 
 async function requireAuth(req, res, next) {
   try {
-    const token = req.cookies.ccs_session;
+    const token = req.cookies.sentinel_session;
     if (!token) {
       return res.redirect("/login.html");
     }
     const session = await redis.get(`session:${token}`);
     if (!session) {
-      res.clearCookie("ccs_session");
+      res.clearCookie("sentinel_session");
       return res.redirect("/login.html");
     }
     next();
@@ -20,7 +20,7 @@ async function requireAuth(req, res, next) {
 
 async function requireAuthApi(req, res, next) {
   try {
-    const token = req.cookies.ccs_session;
+    const token = req.cookies.sentinel_session;
     if (!token) {
       return res.status(401).json({ error: "not authenticated" });
     }

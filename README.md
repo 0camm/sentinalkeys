@@ -1,4 +1,4 @@
-# ccskeys
+# Sentinel keys
 
 - Repo root has one folder for each deploy target: `public/` (Cloudflare Pages) and `backend/` (Render).
 - Delete every other file/folder in the GitHub repo before pushing this — do not merge it on top of the old structure.
