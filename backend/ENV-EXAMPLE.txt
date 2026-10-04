@@ -1,0 +1,6 @@
+ADMIN_USER=change-me
+ADMIN_PASSWORD=use-a-long-random-password
+UPSTASH_REDIS_REST_URL=https://your-db.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-token
+# Your Cloudflare Pages site(s), comma separated, no trailing slash
+FRONTEND_ORIGINS=https://your-keysite.pages.dev

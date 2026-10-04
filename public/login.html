@@ -7,15 +7,15 @@
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
 <title>Sentinel — Admin Login</title>
-<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/sentinal/main/Sentinel.png">
+<link rel="icon" type="image/png" href="https://raw.githubusercontent.com/0camm/sentinel/main/Sentinel.png">
 <link rel="stylesheet" href="/style.css">
-<script src="/config.js"></script>
+<script src="/config.js?v=3"></script>
 </head>
 <body>
   <div class="login-page">
     <div class="login-card">
       <div class="header-brand">
-        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/sentinal/main/Sentinel.png" alt="Sentinel logo">
+        <img class="header-logo" src="https://raw.githubusercontent.com/0camm/sentinel/main/Sentinel.png" alt="Sentinel logo">
         <div>
           <div class="brand-title">Sentinel</div>
           <div class="brand-sub">Key Admin</div>
@@ -38,6 +38,9 @@
     const form = document.getElementById("login-form");
     const errorText = document.getElementById("error-text");
     const submitBtn = form.querySelector(".btn-primary");
+
+    // Wake Render's free server as soon as the page opens (it sleeps when idle).
+    try { fetch(window.API_BASE_URL + "/", { mode: "no-cors" }); } catch (e) { /* ignore */ }
 
     function showError(message) {
       errorText.textContent = message;
@@ -70,7 +73,7 @@
         }
       } catch (err) {
         console.error("Login request failed:", err);
-        showError("Could not reach the server. Try again.");
+        showError("Could not reach " + window.API_BASE_URL + ". If the server was asleep, wait a minute and try again.");
       } finally {
         submitBtn.disabled = false;
       }

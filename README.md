@@ -8,7 +8,7 @@
 - Root Directory: backend
 - Build Command: npm install
 - Start Command: npm start
-- Env vars: see backend/.env.example
+- Env vars: see backend/ENV-EXAMPLE.txt
 
 ## Cloudflare Pages
 
