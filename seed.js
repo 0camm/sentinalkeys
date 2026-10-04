@@ -4,7 +4,7 @@ const path = require("path");
 const redis = require("./lib/redis");
 
 async function seed() {
-  const file = process.argv[2] || path.join(__dirname, "ccs-keys.txt");
+  const file = process.argv[2] || path.join(__dirname, "sentinel-keys.txt");  // keep this file OUT of GitHub
   console.log(`[seed] Reading keys from ${file}`);
 
   if (!fs.existsSync(file)) {
