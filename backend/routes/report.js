@@ -16,6 +16,11 @@ const reportLimiter = rateLimit({
 });
 
 const MAX_LOG_CHARS = 100000;
+const MAX_ENTRIES = 500;        // safety cap so one scan cannot flood the channel
+const MAX_MESSAGE_CHARS = 1900; // Discord's limit is 2000, including the code fence
+const FENCE = "`".repeat(3);
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function parse(entry) {
   if (!entry) return null;
@@ -40,13 +45,54 @@ async function findIdByKey(key) {
   return null;
 }
 
+// Entries are separated by a blank line (the app joins them that way). Multi-line
+// entries such as the prefetch ones stay together in one message.
+function splitEntries(text) {
+  return text
+    .split(/\n{2,}/)
+    .map((e) => e.replace(/\r/g, "").trim())
+    .filter((e) => e && !/^===.*===$/.test(e)); // the "=== SCAN | ... ===" banner is replaced by our header
+}
+
+function asCodeBlock(entry) {
+  let body = entry.split(FENCE).join("'''");
+  if (body.length > MAX_MESSAGE_CHARS) body = body.slice(0, MAX_MESSAGE_CHARS - 3) + "...";
+  return `${FENCE}\n${body}\n${FENCE}`;
+}
+
+// Posts one message, respecting Discord's rate limits (429 + the remaining/reset headers).
+async function postMessage(webhook, content) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const resp = await fetch(webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) // logs can never ping anyone
+    });
+    if (resp.status === 429) {
+      let wait = 1;
+      try { wait = Number((await resp.json()).retry_after) || 1; } catch (e) { /* keep default */ }
+      await sleep(Math.min(wait, 10) * 1000 + 100);
+      continue;
+    }
+    if (resp.ok && resp.headers.get("x-ratelimit-remaining") === "0") {
+      const reset = Number(resp.headers.get("x-ratelimit-reset-after")) || 1;
+      await sleep(Math.min(reset, 10) * 1000 + 50);
+    }
+    return resp;
+  }
+  throw new Error("Discord rate limit not clearing");
+}
+
+// Reports are sent one after another, so two scans never interleave in the channel.
+let sendChain = Promise.resolve();
+
 router.post("/", reportLimiter, async (req, res) => {
   try {
     const body = req.body || {};
     const key = String(body.key || req.get("x-sentinel-key") || "").trim();
     const device = String(body.device || req.get("x-sentinel-device") || "").trim();
     const discordId = String(body.discord_id || "").trim();
-    const host = String(body.host || "").slice(0, 64);
+    const host = String(body.host || "").slice(0, 64).replace(/`/g, "");
     const scan = String(body.scan || "scan").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) || "scan";
     const text = String(body.log || "").slice(0, MAX_LOG_CHARS);
 
@@ -71,25 +117,43 @@ router.post("/", reportLimiter, async (req, res) => {
       return res.status(503).json({ error: "DISCORD_WEBHOOK_URL not set on server" });
     }
 
-    const form = new FormData();
-    form.append("payload_json", JSON.stringify({
-      content: `**Sentinel: ${scan}**\nDiscord ID: \`${discordId}\`  |  Host: \`${host.replace(/`/g, "")}\``,
-      allowed_mentions: { parse: [] } // logs can never ping anyone
-    }));
-    form.append("files[0]", new Blob([text], { type: "text/plain" }), `${scan}_${discordId}.txt`);
+    const entries = splitEntries(text);
+    const shown = entries.slice(0, MAX_ENTRIES);
+    const count = `${entries.length} entr${entries.length === 1 ? "y" : "ies"}`;
+    const header = `**Sentinel: ${scan}** | Discord ID: \`${discordId}\` | Host: \`${host}\` | ${count}`;
 
-    const resp = await fetch(webhook, { method: "POST", body: form });
-    if (!resp.ok) {
-      const detail = (await resp.text()).slice(0, 300);
-      console.error(`[report] Discord returned ${resp.status}: ${detail}`);
-      const hint = resp.status === 401 || resp.status === 404
+    // The first message goes out before replying, so a bad webhook shows up in the app.
+    const first = await postMessage(webhook, header);
+    if (!first.ok) {
+      const detail = (await first.text()).slice(0, 300);
+      console.error(`[report] Discord returned ${first.status}: ${detail}`);
+      const hint = first.status === 401 || first.status === 404
         ? "webhook rejected by Discord (re-create it and update DISCORD_WEBHOOK_URL)"
-        : `webhook returned ${resp.status}`;
+        : `webhook returned ${first.status}`;
       return res.status(502).json({ error: hint });
     }
 
-    console.log(`[report] ${scan} for ${discordId} sent`);
-    res.json({ ok: true });
+    // The entries follow in the background so the app is not kept waiting.
+    sendChain = sendChain.then(async () => {
+      try {
+        for (const item of shown) {
+          const r = await postMessage(webhook, asCodeBlock(item));
+          if (!r.ok) {
+            console.error(`[report] Discord returned ${r.status} mid-report; stopping`);
+            return;
+          }
+        }
+        if (entries.length > shown.length) {
+          await postMessage(webhook, `...and ${entries.length - shown.length} more entries not shown (limit ${MAX_ENTRIES}).`);
+        }
+        console.log(`[report] ${scan} for ${discordId}: ${shown.length} entries delivered`);
+      } catch (err) {
+        console.error("[report] background send failed:", err);
+      }
+    });
+
+    console.log(`[report] ${scan} for ${discordId} accepted (${entries.length} entries)`);
+    res.json({ ok: true, entries: entries.length });
   } catch (err) {
     console.error("[report] failed:", err);
     res.status(500).json({ error: "server error, try again" });
